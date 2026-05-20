@@ -1,7 +1,8 @@
 version: '3'
 
 services:
-  base:
+  rails:
+    image: 'chatwoot-app:production'
     build:
       context: .
       dockerfile: ./docker/Dockerfile
@@ -10,14 +11,6 @@ services:
         EXECJS_RUNTIME: Node
         RAILS_ENV: production
         RAILS_SERVE_STATIC_FILES: 'true'
-    image: 'chatwoot-base:production'
-    env_file: .env
-
-  rails:
-    build:
-      context: .
-      dockerfile: ./docker/dockerfiles/rails.Dockerfile
-    image: 'chatwoot-rails:production'
     env_file: .env
     volumes:
       - 'node_modules:/app/node_modules'
@@ -46,6 +39,7 @@ services:
       - 0.0.0.0
 
   sidekiq:
+    image: 'chatwoot-app:production'
     build:
       context: .
       dockerfile: ./docker/Dockerfile
@@ -54,7 +48,6 @@ services:
         EXECJS_RUNTIME: Node
         RAILS_ENV: production
         RAILS_SERVE_STATIC_FILES: 'true'
-    image: 'chatwoot-sidekiq:production'
     env_file: .env
     volumes:
       - 'node_modules:/app/node_modules'
