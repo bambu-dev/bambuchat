@@ -1,117 +1,103 @@
 version: '3'
 
 services:
-  base: &base
+  base:
     build:
       context: .
       dockerfile: ./docker/Dockerfile
       args:
-        BUNDLE_WITHOUT: ''
-        EXECJS_RUNTIME: 'Node'
-        RAILS_ENV: 'development'
-        RAILS_SERVE_STATIC_FILES: 'false'
-    tty: true
-    stdin_open: true
-    image: chatwoot:development
+        BUNDLE_WITHOUT: 'development test'
+        EXECJS_RUNTIME: Node
+        RAILS_ENV: production
+        RAILS_SERVE_STATIC_FILES: 'true'
+    image: 'chatwoot-base:production'
     env_file: .env
 
   rails:
-    <<: *base
     build:
       context: .
       dockerfile: ./docker/dockerfiles/rails.Dockerfile
-    image: chatwoot-rails:development
+    image: 'chatwoot-rails:production'
+    env_file: .env
     volumes:
-      - ./:/app:delegated
-      - node_modules:/app/node_modules
-      - packs:/app/public/packs
-      - cache:/app/tmp/cache
-      - bundle:/usr/local/bundle
+      - 'node_modules:/app/node_modules'
+      - 'packs:/app/public/packs'
+      - 'cache:/app/tmp/cache'
+      - 'bundle:/usr/local/bundle'
     depends_on:
       - postgres
       - redis
-      - vite
-      - mailhog
-      - sidekiq
     ports:
-      - 3000:3000
-    env_file: .env
+      - '3000:3000'
     environment:
-      - VITE_DEV_SERVER_HOST=vite
-      - NODE_ENV=development
-      - RAILS_ENV=development
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     entrypoint: docker/entrypoints/rails.sh
-    command: ["bundle", "exec", "rails", "s", "-p", "3000", "-b", "0.0.0.0"]
+    command:
+      - bundle
+      - exec
+      - rails
+      - s
+      - '-p'
+      - '3000'
+      - '-b'
+      - 0.0.0.0
 
   sidekiq:
-    <<: *base
-    image: chatwoot-rails:development
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+      args:
+        BUNDLE_WITHOUT: 'development test'
+        EXECJS_RUNTIME: Node
+        RAILS_ENV: production
+        RAILS_SERVE_STATIC_FILES: 'true'
+    image: 'chatwoot-sidekiq:production'
+    env_file: .env
     volumes:
-      - ./:/app:delegated
-      - node_modules:/app/node_modules
-      - packs:/app/public/packs
-      - cache:/app/tmp/cache
-      - bundle:/usr/local/bundle
+      - 'node_modules:/app/node_modules'
+      - 'packs:/app/public/packs'
+      - 'cache:/app/tmp/cache'
+      - 'bundle:/usr/local/bundle'
     depends_on:
       - postgres
       - redis
-      - mailhog
     environment:
-      - NODE_ENV=development
-      - RAILS_ENV=development
-    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
-
-  vite:
-    <<: *base
-    build:
-      context: .
-      dockerfile: ./docker/dockerfiles/vite.Dockerfile
-    image: chatwoot-vite:development
-    volumes:
-      - ./:/app:delegated
-      - node_modules:/app/node_modules
-      - packs:/app/public/packs
-      - cache:/app/tmp/cache
-      - bundle:/usr/local/bundle
-    ports:
-      - "3036:3036" # Vite dev server
-    environment:
-      - VITE_DEV_SERVER_HOST=0.0.0.0
-      - NODE_ENV=development
-      - RAILS_ENV=development
-    entrypoint: docker/entrypoints/vite.sh
-    command: bin/vite dev
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command:
+      - bundle
+      - exec
+      - sidekiq
+      - '-C'
+      - config/sidekiq.yml
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: 'pgvector/pgvector:pg16'
     restart: always
-    ports:
-      - '5432:5432'
     volumes:
-      - postgres:/data/postgres
+      - 'postgres:/data/postgres'
     environment:
       - POSTGRES_DB=chatwoot
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
   redis:
-    image: redis:alpine
+    image: 'redis:alpine'
     restart: always
-    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\""]
-    env_file: .env
+    command:
+      - sh
+      - '-c'
+      - 'redis-server --requirepass "$REDIS_PASSWORD"'
     volumes:
-      - redis:/data/redis
-    ports:
-      - '6379:6379'
-
-  mailhog:
-    image: mailhog/mailhog
-    ports:
-      - 1025:1025
-      - 8025:8025
+      - 'redis:/data/redis'
 
   media-server:
-    image: chatwoot/media-server:latest
+    image: 'chatwoot-media-server:production'
     build:
       context: ./enterprise/media-server
       dockerfile: Dockerfile
@@ -119,16 +105,16 @@ services:
       - '4000:4000'
       - '10000-10100:10000-10100/udp'
     environment:
-      - AUTH_TOKEN=${MEDIA_SERVER_AUTH_TOKEN:-}
-      - RAILS_CALLBACK_URL=http://rails:3000
+      - 'AUTH_TOKEN=${MEDIA_SERVER_AUTH_TOKEN:-}'
+      - 'RAILS_CALLBACK_URL=http://rails:3000'
       - RECORDINGS_DIR=/recordings
       - LOG_LEVEL=info
       - UDP_PORT_MIN=10000
       - UDP_PORT_MAX=10100
-      - PUBLIC_IP=${MEDIA_SERVER_PUBLIC_IP:-}
-      - STUN_SERVERS=stun:stun.l.google.com:19302
+      - 'PUBLIC_IP=${MEDIA_SERVER_PUBLIC_IP:-}'
+      - 'STUN_SERVERS=stun:stun.l.google.com:19302'
     volumes:
-      - media_recordings:/recordings
+      - 'media_recordings:/recordings'
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:4000/health']
