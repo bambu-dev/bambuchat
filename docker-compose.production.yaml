@@ -20,7 +20,7 @@ services:
       - INSTALLATION_ENV=docker
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=${REDIS_URL}
       - POSTGRES_HOST=postgres
       - POSTGRES_DATABASE=chatwoot
       - POSTGRES_USERNAME=postgres
